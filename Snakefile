@@ -134,6 +134,7 @@ rule star_align:
     STAR --runMode alignReads \\
       --runThreadN {threads} \\
       --genomeDir $(dirname {input.idx}) \\
+      --twopassMode Basic \\
       --readFilesIn {params.inputStr} \\
       --readFilesCommand zcat \\
       --outFileNamePrefix {params.prefix} \\
