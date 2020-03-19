@@ -2,8 +2,7 @@ configfile: "config.yaml"
 
 rule all:
  input:
-   "qc/raw/fastqc_summary.html",
-   "qc/trimmed/WT_2/fastqc_compare_summary.html"
+   "qc/raw/fastqc_summary.html"
 
 rule download_metadata:
   output:
@@ -92,66 +91,35 @@ rule multiqc:
     multiqc -z -m fastqc -n fastqc_summary -o qc/raw qc/raw
     """
 
-rule trim_galore:
+rule star_genome_index:
   input:
-    "data/fastq/raw/{condition}_{biorep}/{condition}_{biorep}_{lane}.fastq.gz"
+    fasta=config['genomeFASTA'],
+    gtf=config['txomeGTF']
   output:
-    fastq="data/fastq/trimmed/{condition}_{biorep}/{condition}_{biorep}_{lane}_trimmed.fq.gz",
-    stats="data/fastq/trimmed/{condition}_{biorep}/{condition}_{biorep}_{lane}.fastq.gz_trimming_report.txt"
-  wildcard_constraints:
-    condition="(WT|SNF2)",
-    biorep="[0-9]+",
-    lane="[0-9]+"
-  conda:
-    "envs/angsd.yaml"
-  shell:
-    """
-    trim_galore -o $(dirname {output.fastq}) {input}
-    """
-
-rule fastqc_trimmed:
-  input:
-    "data/fastq/trimmed/{condition}_{biorep}/{condition}_{biorep}_{lane}_trimmed.fq.gz"
-  output:
-    html="qc/trimmed/{condition}_{biorep}/{condition}_{biorep}_{lane}_trimmed_fastqc.html",
-    archive="qc/trimmed/{condition}_{biorep}/{condition}_{biorep}_{lane}_trimmed_fastqc.zip"
-  wildcard_constraints:
-    condition="(WT|SNF2)",
-    biorep="[0-9]+",
-    lane="[0-9]+"
-  conda:
-    "envs/angsd.yaml"
-  shell:
-    """
-    outdir=$(dirname {output.html})
-    mkdir -p $outdir
-    fastqc -o $outdir {input}
-    """
-
-rule multiqc_compare:
-  input:
-    expand("qc/raw/{condition}_{biorep}/{condition}_{biorep}_{lane}_fastqc.html",
-           lane=[1,2,3,4,5,6,7], allow_missing=True),
-    expand("qc/trimmed/{condition}_{biorep}/{condition}_{biorep}_{lane}_trimmed_fastqc.html",
-           lane=[1,2,3,4,5,6,7], allow_missing=True)
-  output:
-    html="qc/trimmed/{condition}_{biorep}/fastqc_compare_summary.html",
-    data="qc/trimmed/{condition}_{biorep}/fastqc_compare_summary_data.zip"
+    idx="data/idx/sacCer3_STARindex/SAindex"
   params:
-    rawDir=lambda wcs: "qc/raw/%s_%s" % (wcs.condition, wcs.biorep),
-    trimDir=lambda wcs: "qc/trimmed/%s_%s" % (wcs.condition, wcs.biorep)
-  conda:
-    "envs/angsd.yaml"
+    tmpDir=lambda _: config["tmpDir"] + "/STAR_genome"
+  threads: 1
+  conda: "envs/angsd.yaml"
   shell:
     """
-    multiqc -z -m fastqc -n fastqc_compare_summary -o {params.trimDir} {params.rawDir} {params.trimDir}
+    mkdir -p $(dirname {params.tmpDir})
+    mkdir -p data/idx
+    STAR --runMode genomeGenerate \\
+      --runThreadN {threads} \\
+      --genomeDir $(dirname {output.idx}) \\
+      --genomeFastaFiles {input.fasta} \\
+      --sjdbGTFfile {input.gtf} \\
+      --sjdbOverhang 50 \\
+      --outTmpDir {params.tmpDir}
+    rm -rf {params.tmpDir}
     """
 
 rule star_align:
   input:
     fastq=expand("data/fastq/raw/{condition}_{biorep}/{condition}_{biorep}_{lane}.fastq.gz",
                  lane=[1,2,3,4,5,6,7], allow_missing=True),
-    idx="data/idx/sacCer3_STARindex"
+    idx="data/idx/sacCer3_STARindex/SAindex"
   output:
     "data/bam/STAR/{condition}_{biorep}.Aligned.sortedByCoord.out.bam"
   params:
@@ -165,7 +133,7 @@ rule star_align:
     mkdir -p $(dirname {output})
     STAR --runMode alignReads \\
       --runThreadN {threads} \\
-      --genomeDir {input.idx} \\
+      --genomeDir $(dirname {input.idx}) \\
       --readFilesIn {params.inputStr} \\
       --readFilesCommand zcat \\
       --outFileNamePrefix {params.prefix} \\
@@ -199,28 +167,4 @@ rule filter_chr:
     """
     samtools view -b -h {input.bam} {wildcards.chrom} > {output.bam}
     samtools index {output.bam}
-    """
-
-rule star_genome_index:
-  input:
-    fasta=config['genomeFASTA'],
-    gtf=config['txomeGTF']
-  output:
-    idx="data/idx/sacCer3_STARindex/SAindex"
-  params:
-    tmpDir=lambda _: config["tmpDir"] + "/STAR_genome"
-  threads: 1
-  conda: "envs/angsd.yaml"
-  shell:
-    """
-    mkdir -p $(dirname {params.tmpDir})
-    mkdir -p data/idx
-    STAR --runMode genomeGenerate \\
-      --runThreadN {threads} \\
-      --genomeDir $(dirname {output.idx}) \\
-      --genomeFastaFiles {input.fasta} \\
-      --sjdbGTFfile {input.gtf} \\
-      --sjdbOverhang 50 \\
-      --outTmpDir {params.tmpDir}
-    rm -rf {params.tmpDir}
     """
