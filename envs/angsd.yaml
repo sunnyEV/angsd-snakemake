@@ -1,0 +1,11 @@
+name: angsd
+channels:
+ - conda-forge
+ - bioconda
+ - defaults
+dependencies:
+ - samtools
+ - fastqc
+ - multiqc
+ - trim-galore
+ - star=2.7.0e

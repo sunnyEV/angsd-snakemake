@@ -1,0 +1,9 @@
+name: snakemake_5_11_2
+channels:
+ - conda-forge
+ - bioconda
+ - defaults
+dependencies:
+ - snakemake=5.11.2
+ - git
+ - git-lfs
