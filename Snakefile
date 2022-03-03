@@ -1,9 +1,30 @@
 configfile: "config.yaml"
 
+import os
+from sys import stderr
+
+# printing to stderr
+def message(*args, **kwargs):
+    print(*args, file=stderr, **kwargs)
+
+# make sure the tmp directory exists
+os.makedirs(config['tmpDir'], exist_ok=True)
+
+
+## TODO: Add some informative messages to summarize configuration settings!
+
+
+################################################################################
+## Default Outputs
+##  - this defines what running simply `snakemake` would generate
+################################################################################
 rule all:
  input:
    "qc/raw/fastqc_summary.html"
 
+## Question: Why is the `input` key used? Why not `output`?
+
+   
 ################################################################################
 ## Downloading Data
 ################################################################################
@@ -63,14 +84,14 @@ rule download_sample_fastqs:
   input:
     tsv="metadata/sample_ftp_map.tsv"
   output:
-    expand("data/fastq/raw/{condition}_{biorep}/{condition}_{biorep}_{lane}.fastq.gz",
+    expand("data/fastq/{condition}_{biorep}/{condition}_{biorep}_{lane}.fastq.gz",
            lane=list(config['lanes']), allow_missing=True)
   wildcard_constraints:
     condition="(WT|SNF2)",
     biorep="[0-9]+"
   shell:
     """
-    path='data/fastq/raw/{wildcards.condition}_{wildcards.biorep}/{wildcards.condition}_{wildcards.biorep}_'
+    path='data/fastq/{wildcards.condition}_{wildcards.biorep}/{wildcards.condition}_{wildcards.biorep}_'
     mkdir -p $(dirname $path)
     awk '$3 == "{wildcards.condition}" && $4 == "{wildcards.biorep}"' {input.tsv} |
     while read -r f; do
@@ -85,10 +106,10 @@ rule download_sample_fastqs:
 ################################################################################
 rule fastqc:
   input:
-    fastq="data/fastq/raw/{condition}_{biorep}/{condition}_{biorep}_{lane}.fastq.gz"
+    fastq="data/fastq/{condition}_{biorep}/{condition}_{biorep}_{lane}.fastq.gz"
   output:
-    html="qc/raw/{condition}_{biorep}/{condition}_{biorep}_{lane}_fastqc.html",
-    archive="qc/raw/{condition}_{biorep}/{condition}_{biorep}_{lane}_fastqc.zip"
+    html="qc/fastqc/{condition}_{biorep}/{condition}_{biorep}_{lane}_fastqc.html",
+    archive="qc/fastqc/{condition}_{biorep}/{condition}_{biorep}_{lane}_fastqc.zip"
   wildcard_constraints:
     condition="(WT|SNF2)",
     biorep="[0-9]+",
@@ -103,13 +124,13 @@ rule fastqc:
 
 rule multiqc_fastq:
   input:
-    expand("qc/raw/{condition}_{biorep}/{condition}_{biorep}_{lane}_fastqc.html",
+    expand("qc/fastqc/{condition}_{biorep}/{condition}_{biorep}_{lane}_fastqc.html",
            condition=list(config['conditions']),
            biorep=list(config['biologicalReplicates']),
            lane=list(config['lanes']))
   output:
-    html="qc/raw/fastqc_summary.html",
-    data="qc/raw/fastqc_summary_data.zip"
+    html="qc/fastqc/fastqc_summary.html",
+    data="qc/fastqc/fastqc_summary_data.zip"
   conda: "envs/angsd.yaml"
   shell:
     """
@@ -145,7 +166,7 @@ rule star_genome_index:
 
 rule star_align:
   input:
-    fastq=expand("data/fastq/raw/{condition}_{biorep}/{condition}_{biorep}_{lane}.fastq.gz",
+    fastq=expand("data/fastq/{condition}_{biorep}/{condition}_{biorep}_{lane}.fastq.gz",
                  lane=list(config['lanes']), allow_missing=True),
     idx="data/idx/sacCer3_STARindex/SAindex"
   output:
