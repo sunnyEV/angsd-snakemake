@@ -1,18 +1,37 @@
-metadataURL: "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB5348&result=read_run&fields=run_accession,fastq_ftp&format=tsv&download=true"
+## system options
+tmpDir: "/scratchLocal/mef3005"
 
-sampleMappingURL: "https://ndownloader.figshare.com/files/2194841"
+## reference options
+genome:
+  fasta: "data/fasta/sacCer3.fa.gz"
+  url: "https://hgdownload.soe.ucsc.edu/goldenPath/sacCer3/bigZips/sacCer3.fa.gz"
+txome:
+  gtf: "data/gtf/sacCer3.refSeq.gtf.gz"
+  url: "https://hgdownload.soe.ucsc.edu/goldenPath/sacCer3/bigZips/genes/sacCer3.ncbiRefSeq.gtf.gz"
 
+## data locations
+metadata:
+  tsv: "metadata/PRJEB5348_metadata.tsv"
+  url: "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB5348&result=read_run&fields=run_accession,fastq_ftp&format=tsv&download=true"
+sample_map:
+  tsv: "metadata/PRJEB5348_sample_map.tsv"
+  url: "https://ndownloader.figshare.com/files/2194841"
+
+## sample options
 conditions:
- - "WT"
- - "SNF2"
+  - "WT"
+  - "SNF2"
 
 biologicalReplicates:
- - 1
- - 2
- - 3
+  - 1
+  - 2
+  - 3
 
-genomeFASTA: "/home/luce/angsd/referenceGenomes/sacCer3.fa"
-
-txomeGTF: "/home/luce/angsd/referenceGenomes/sacCer3.sgd.gtf"
-
-tmpDir: "/scratchLocal/mef3005"
+lanes:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7

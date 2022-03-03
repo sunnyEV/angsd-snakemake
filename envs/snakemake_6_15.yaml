@@ -1,0 +1,9 @@
+name: snakemake_6_15
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - snakemake=6.15
+  - git
+  - git-lfs
