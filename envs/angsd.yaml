@@ -4,7 +4,7 @@ channels:
  - bioconda
  - defaults
 dependencies:
- - samtools
- - fastqc
+ - samtools=1.15
+ - fastqc=0.11.9
  - multiqc
- - star=2.7.0e
+ - star=2.7.10a
