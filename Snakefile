@@ -19,14 +19,21 @@ os.makedirs(config['tmpDir'], exist_ok=True)
 ##  - this defines what running simply `snakemake` would generate
 ################################################################################
 rule all:
- input:
-   "qc/raw/fastqc_summary.html"
+  input:
+    ## summary of all FastQC
+    "qc/fastqc/fastqc_summary.html"
 
 ## Question: Why is the `input` key used? Why not `output`?
 
+## Task: Try running `snakemake -np` to see ouput.
+
+## Task: Try running `snakemake --list-target-rules`
+
+## Task: Try running `snakemake -np data/fastq/WT_1/WT_1_1.fastq.gz`
    
 ################################################################################
 ## Downloading Data
+##  - rules to download data
 ################################################################################
 
 rule download_genome:
@@ -69,6 +76,7 @@ rule download_mapping:
     wget --content-disposition -O {output.tsv} '{params.url}'
     """
 
+## Question: What does this do?
 rule join_ftp_links:
   input:
     metadata=config['metadata']['tsv'],
@@ -80,6 +88,7 @@ rule join_ftp_links:
     join --header -t $'\t' {input.sample_map} {input.metadata} > {output}
     """
 
+## Task: Rework to download individually
 rule download_sample_fastqs:
   input:
     tsv="metadata/sample_ftp_map.tsv"
@@ -134,11 +143,14 @@ rule multiqc_fastq:
   conda: "envs/angsd.yaml"
   shell:
     """
-    multiqc -z -m fastqc -n fastqc_summary -o qc/raw qc/raw
+    multiqc -z -m fastqc -n fastqc_summary -o qc/fastqc qc/fastqc
     """
 
 ################################################################################
 ## Aligning data with STAR
+##   - initial rules for running STAR
+##   - these don't quite work yet
+## TODO: figure out what is wrong and propose a solution
 ################################################################################
 rule star_genome_index:
   input:
@@ -147,11 +159,15 @@ rule star_genome_index:
   output:
     idx="data/idx/sacCer3_STARindex/SAindex"
   params:
+    ## TODO: Change sjdbOverhang to a parameter
     tmpDir=lambda _: config["tmpDir"] + "/STAR_genome"
-  threads: 1
+  threads: 6
+  ## TODO: Do we need extra memory?
   conda: "envs/angsd.yaml"
+  ## TODO: Can we redirect the Log.out?
   shell:
     """
+    rm -rf {params.tmpDir}
     mkdir -p $(dirname {params.tmpDir})
     mkdir -p data/idx
     STAR --runMode genomeGenerate \\
@@ -177,6 +193,8 @@ rule star_align:
   threads: 1
   conda: "envs/angsd.yaml"
   ## TODO: add additional SAM tags
+  ## TODO: should we rename the SAM file?
+  ## TODO: can we redirect Log.out? 
   shell:
     """
     mkdir -p $(dirname {output})
@@ -189,6 +207,8 @@ rule star_align:
       --outSAMtype BAM SortedByCoordinate
     """
 
+
+## Question: Does this need to be generic?
 rule bam_index:
   input:
     bam=lambda wcs: "data/bam/%s/%s.bam" % (wcs.aligner, wcs.sample)
@@ -202,18 +222,12 @@ rule bam_index:
     samtools index {input.bam}
     """
 
-rule filter_chr:
-  input:
-    bam=lambda wcs: "data/bam/%s/%s.Aligned.sortedByCoord.out.bam" % (wcs.aligner, wcs.sample)
-  output:
-    bam="data/bam/{aligner}/{sample}.{chrom}.bam",
-    bai="data/bam/{aligner}/{sample}.{chrom}.bam.bai"
-  wildcard_constraints:
-    aligner="(STAR|BWA)",
-    chrom="chr(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|XVI|M)"
-  conda: "envs/angsd.yaml"
-  shell:
-    """
-    samtools view -b -h {input.bam} {wildcards.chrom} > {output.bam}
-    samtools index {output.bam}
-    """
+################################################################################
+## Tasks:
+##   1. Add an `input` of the "all" rule so that all BAMs are indexed.
+##   2. Add a rule to run RSeQC on each BAM. (HINT: Need a new Conda environment)
+##   3. Add a rule to run featureCounts on:
+##     a) genes
+##     b) exons
+##   4. Add a rule to run MultiQC on FastQC, STAR, RSeQC, and featureCount outputs.
+################################################################################
